@@ -15,7 +15,7 @@
     <div class="header-icon">G</div>
     <div>
       <h1>游戏运营数据看板</h1>
-      <p class="header-desc">手游数据分析 · 玩家留存 & 商业化变现 · Gamelytics Mobile Analytics</p>
+      <p class="header-desc">手游数据分析 · 玩家留存与商业化变现 · 基于离线聚合结果展示</p>
     </div>
   </header>
 
@@ -34,42 +34,48 @@
       <div class="kpi-card" data-color="blue">
         <div class="kpi-label">日均活跃 (DAU)</div>
         <div class="kpi-value" id="overviewDauValue">--</div>
-        <div class="kpi-sub">近7日均值</div>
+        <div class="kpi-sub">近7日均值（自然日去重）</div>
       </div>
       <div class="kpi-card" data-color="amber">
         <div class="kpi-label">次日留存</div>
         <div class="kpi-value" id="overviewD1Value">--</div>
-        <div class="kpi-sub">首日回访率</div>
+        <div class="kpi-sub">注册后第1天回访率</div>
       </div>
       <div class="kpi-card" data-color="green">
         <div class="kpi-label">7日留存</div>
         <div class="kpi-value" id="overviewD7Value">--</div>
-        <div class="kpi-sub">一周回访率</div>
+        <div class="kpi-sub">注册后第7天回访率</div>
       </div>
       <div class="kpi-card" data-color="purple">
         <div class="kpi-label">付费率</div>
         <div class="kpi-value" id="overviewPayRateValue">--</div>
-        <div class="kpi-sub" id="overviewPayRateSub">A/B 变现实验样本口径</div>
+        <div class="kpi-sub" id="overviewPayRateSub">A/B 实验样本口径</div>
       </div>
       <div class="kpi-card" data-color="cyan">
         <div class="kpi-label">ARPU</div>
         <div class="kpi-value" id="overviewArpuValue">--</div>
-        <div class="kpi-sub" id="overviewArpuSub">每用户平均收入（A/B 实验样本）</div>
+        <div class="kpi-sub" id="overviewArpuSub">样本每用户平均收入</div>
       </div>
       <div class="kpi-card" data-color="red">
         <div class="kpi-label">ARPPU</div>
         <div class="kpi-value" id="overviewArppuValue">--</div>
-        <div class="kpi-sub" id="overviewArppuSub">每付费用户平均收入（A/B 实验样本）</div>
+        <div class="kpi-sub" id="overviewArppuSub">样本付费用户平均收入</div>
       </div>
+    </div>
+
+    <div class="insight-badge insight-info">
+      <span class="icon">i</span>
+      <span id="overviewOperatorNote">数据加载中...</span>
     </div>
 
     <div class="chart-card">
       <div class="section-title">DAU 趋势（2020 周均值）</div>
+      <p class="section-desc" id="overviewDataNote">数据加载中...</p>
       <div class="chart-container"><canvas id="chartDAU" height="240"></canvas></div>
     </div>
 
     <div class="chart-card">
-      <div class="section-title">留存曲线（D0-D30）</div>
+      <div class="section-title">注册后 D0-D30 留存</div>
       <div class="chart-container"><canvas id="chartRetOverview" height="220"></canvas></div>
     </div>
   </section>
@@ -80,7 +86,7 @@
       <div class="kpi-card" data-color="red">
         <div class="kpi-label">D1 · 次日留存</div>
         <div class="kpi-value" id="retentionD1Value">--</div>
-        <div class="kpi-sub">关键流失节点</div>
+        <div class="kpi-sub">首日关键流失节点</div>
       </div>
       <div class="kpi-card" data-color="amber">
         <div class="kpi-label">D3 · 3日留存</div>
@@ -89,7 +95,7 @@
       <div class="kpi-card" data-color="green">
         <div class="kpi-label">D7 · 7日留存</div>
         <div class="kpi-value" id="retentionD7Value">--</div>
-        <div class="kpi-sub">周留存基准</div>
+        <div class="kpi-sub">首周回访观察点</div>
       </div>
       <div class="kpi-card" data-color="purple">
         <div class="kpi-label">D14 · 14日留存</div>
@@ -98,12 +104,12 @@
       <div class="kpi-card" data-color="cyan">
         <div class="kpi-label">D30 · 30日留存</div>
         <div class="kpi-value" id="retentionD30Value">--</div>
-        <div class="kpi-sub">月度粘性</div>
+        <div class="kpi-sub">月度回访观察点</div>
       </div>
     </div>
 
     <div class="chart-card">
-      <div class="section-title">完整留存曲线（去除D0）</div>
+      <div class="section-title">注册后 D1-D30 留存</div>
       <p class="section-desc" id="retentionSummary">数据加载中...</p>
       <div class="chart-container"><canvas id="chartRetFull" height="280"></canvas></div>
     </div>
@@ -111,6 +117,7 @@
     <!-- Cohort Heatmap Table -->
     <div class="chart-card">
       <div class="section-title">月度 Cohort 留存热力图（2020）</div>
+      <p class="section-desc" id="cohortNote">数据加载中...</p>
       <table class="data-table" id="cohortTable">
         <thead>
           <tr><th>注册月份</th><th style="text-align:center">次日</th><th style="text-align:center">3日</th><th style="text-align:center">7日</th><th style="text-align:center">14日</th><th style="text-align:center">30日</th></tr>
@@ -135,7 +142,7 @@
       <div class="kpi-card" data-color="blue">
         <div class="kpi-label">付费率</div>
         <div class="kpi-value" id="revenuePayRateValue">--</div>
-        <div class="kpi-sub" id="revenuePayRateSub">A/B 变现实验样本口径</div>
+        <div class="kpi-sub" id="revenuePayRateSub">A/B 实验样本口径</div>
       </div>
       <div class="kpi-card" data-color="cyan">
         <div class="kpi-label">实验样本 ARPU</div>
@@ -144,7 +151,7 @@
       <div class="kpi-card" data-color="red">
         <div class="kpi-label">实验样本 ARPPU</div>
         <div class="kpi-value" id="revenueArppuValue">--</div>
-        <div class="kpi-sub">付费用户均值</div>
+        <div class="kpi-sub">样本付费用户平均收入</div>
       </div>
     </div>
 
@@ -197,7 +204,8 @@
     </div>
 
     <div class="chart-card">
-      <div class="section-title">A/B 组对比</div>
+      <div class="section-title">A/B 样本指标对比</div>
+      <p class="section-desc" id="abTestNote">数据加载中...</p>
       <div class="chart-container"><canvas id="chartAB" height="240"></canvas></div>
     </div>
 
@@ -211,6 +219,7 @@
   <section class="tab-panel" id="panel-insights">
     <div class="chart-card">
       <div class="section-title">关键发现</div>
+      <p class="section-desc" id="insightMethodNote">数据加载中...</p>
 
       <div class="insight-badge insight-warning">
         <span class="icon">!</span>
@@ -245,27 +254,28 @@
 
     <div class="chart-card">
       <div class="section-title">运营行动优先级</div>
+      <p class="section-desc">以下动作属于基于当前聚合结果提出的候选方向，用于面试讨论，不代表已经完成线上验证。</p>
       <div class="action-grid">
         <div class="action-card" data-priority="P0">
           <div class="action-priority">P0</div>
-          <div class="action-title">提升次日留存</div>
-          <div class="action-item"><span class="bullet">›</span> 重做新手引导流程</div>
-          <div class="action-item"><span class="bullet">›</span> 新增首日登录奖励</div>
-          <div class="action-item"><span class="bullet">›</span> 优化 H+2 / H+6 推送策略</div>
+          <div class="action-title">修复首日承接（对应 D1）</div>
+          <div class="action-item"><span class="bullet">›</span> 先复盘新手引导与首日任务节奏</div>
+          <div class="action-item"><span class="bullet">›</span> 补首日奖励与次日回访触达</div>
+          <div class="action-item"><span class="bullet">›</span> 观察 D1 / D3 是否同步改善</div>
         </div>
         <div class="action-card" data-priority="P1">
           <div class="action-priority">P1</div>
-          <div class="action-title">多元化营收结构</div>
-          <div class="action-item"><span class="bullet">›</span> 上线通行证（¥30/月）</div>
-          <div class="action-item"><span class="bullet">›</span> 推出 ¥6-¥68 新手礼包</div>
-          <div class="action-item"><span class="bullet">›</span> 每周限时折扣面向海豚用户</div>
+          <div class="action-title">补中腰部转化（对应低付费率）</div>
+          <div class="action-item"><span class="bullet">›</span> 优先测试首购礼包与轻付费商品</div>
+          <div class="action-item"><span class="bullet">›</span> 把中度付费用户做成可持续层级</div>
+          <div class="action-item"><span class="bullet">›</span> 关注付费率是否改善，而不只看 ARPPU</div>
         </div>
         <div class="action-card" data-priority="P2">
           <div class="action-priority">P2</div>
-          <div class="action-title">维护鲸鱼用户</div>
-          <div class="action-item"><span class="bullet">›</span> 专属客服/VIP 群</div>
-          <div class="action-item"><span class="bullet">›</span> 新版本抢先体验权</div>
-          <div class="action-item"><span class="bullet">›</span> 定制化游戏内活动</div>
+          <div class="action-title">深化 1-9 天游玩用户</div>
+          <div class="action-item"><span class="bullet">›</span> 用周任务和连续登录拉升中层活跃</div>
+          <div class="action-item"><span class="bullet">›</span> 先做轻召回，不把资源全投给沉默用户</div>
+          <div class="action-item"><span class="bullet">›</span> 观察中层用户向核心活跃迁移</div>
         </div>
       </div>
     </div>

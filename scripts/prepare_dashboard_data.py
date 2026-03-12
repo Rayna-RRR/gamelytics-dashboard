@@ -20,6 +20,8 @@ AB_FILE = RAW_DIR / "ab_test.csv"
 
 RETENTION_WINDOWS = [1, 3, 7, 14, 30]
 LEGACY_RETENTION_DAYS = list(range(1, 31))
+# The page focuses on recent monthly cohorts for readability.
+# Older cohorts are still exported to processed outputs for audit and interview discussion.
 LEGACY_COHORT_MONTHS = [f"2020-{month:02d}" for month in range(1, 9)]
 ACTIVITY_WINDOW_DAYS = 30
 TIMEZONE = "Asia/Shanghai"
@@ -176,6 +178,8 @@ def build_activity_segments(reg: pd.DataFrame, auth_user_day: pd.DataFrame) -> p
     as_of_date = auth_user_day["auth_date"].max()
     window_start = as_of_date - pd.Timedelta(days=ACTIVITY_WINDOW_DAYS - 1)
 
+    # Segment users by number of active days in the last 30 natural days.
+    # This keeps the output simple enough for a portfolio dashboard while still being operationally interpretable.
     recent_activity = auth_user_day[
         (auth_user_day["auth_date"] >= window_start) & (auth_user_day["auth_date"] <= as_of_date)
     ].groupby("uid").size()
@@ -253,6 +257,8 @@ def build_ab_summary(ab: pd.DataFrame) -> dict[str, object]:
     ab["testgroup"] = ab["testgroup"].str.lower()
     ab["payer"] = ab["revenue"] > 0
 
+    # The source data only supports sample-level result reading.
+    # We intentionally avoid implying a full experiment readout with exposure checks or rollout decisions.
     group_rows = []
     group_stats = {}
     for group_name, group_df in ab.groupby("testgroup", sort=True):

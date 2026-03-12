@@ -87,8 +87,32 @@ function getPeakRetentionPoint(retentionFull, startDay, endDay) {
   return range.reduce((best, point) => (point.v > best.v ? point : best), range[0]);
 }
 
+// Lightweight insight helpers:
+// use a few fixed thresholds to turn existing metrics into operator-facing notes,
+// without pretending to be an automated decision engine.
+function getSegmentByKey(activitySegments, key) {
+  return activitySegments.find(segment => segment.key === key);
+}
+
 function renderOverview(data) {
-  const { overview } = data;
+  const { overview, meta, activity_segments: activity } = data;
+  const inactive = getSegmentByKey(activity.segments, 'inactive_30d');
+  const mid = getSegmentByKey(activity.segments, 'mid_4_9d');
+  const operatorNote = [];
+
+  if (overview.retention.D1 < 5) {
+    operatorNote.push(`首日承接偏弱，D1 仅 ${formatPercent(overview.retention.D1)}`);
+  } else {
+    operatorNote.push(`首日承接暂时稳定，D1 为 ${formatPercent(overview.retention.D1)}`);
+  }
+
+  if (inactive.share >= 80) {
+    operatorNote.push(`近30日沉默用户占 ${formatPercent(inactive.share)}，召回池较大`);
+  }
+
+  if (mid.share > 5) {
+    operatorNote.push(`4-9 天游玩用户占 ${formatPercent(mid.share)}，存在向核心活跃深化的空间`);
+  }
 
   setText('overviewDauValue', formatNumber(overview.dau_7d_avg, 0));
   setText('overviewD1Value', formatPercent(overview.retention.D1));
@@ -98,7 +122,15 @@ function renderOverview(data) {
   setText('overviewArppuValue', formatCompactCurrency(overview.monetization.arppu));
   setText(
     'overviewPayRateSub',
-    `${formatNumber(overview.monetization.payers)} / ${formatNumber(overview.monetization.users)} A/B 变现实验样本`
+    `${formatNumber(overview.monetization.payers)} / ${formatNumber(overview.monetization.users)} A/B 实验样本付费用户`
+  );
+  setText(
+    'overviewDataNote',
+    `数据来源：reg_data.csv、auth_data.csv、ab_test.csv。页面读取离线聚合后的 dashboard-metrics.json，不直接加载原始大文件；当前展示覆盖全量注册 ${formatNumber(meta.reg_users)}、登录事件 ${formatNumber(meta.auth_rows)}，截至 ${meta.data_end}。`
+  );
+  setText(
+    'overviewOperatorNote',
+    `运营快照：${operatorNote.join('；')}。当前更适合把重点放在首日承接修复与中层活跃深化，而不是只看表面 DAU 增长。`
   );
 }
 
@@ -113,7 +145,11 @@ function renderRetention(data) {
   setText('retentionD30Value', formatPercent(overview.retention.D30));
   setText(
     'retentionSummary',
-    `D0→D1 从 100% 降至 ${formatPercent(overview.retention.D1)}，随后在 ${peak.d} 回升至 ${formatPercent(peak.v)}；这里使用的是定点留存（非滚动留存），未成熟窗口按可观测用户计算，截至 ${meta.data_end}。`
+    `口径说明：留存按注册 cohort 计算定点留存，Dn 表示用户是否在注册后第 n 个自然日登录，不是滚动留存，因此曲线不一定单调下降。当前截至 ${meta.data_end}，未成熟窗口按可观测用户计算；样本中 ${peak.d} 回升至 ${formatPercent(peak.v)}，更适合作为首周回流信号。运营上应优先修复 D1，并复核签到、任务或活动节奏是否在 ${peak.d} 附近形成固定回访节点。`
+  );
+  setText(
+    'cohortNote',
+    '热力图仅展示 2020 注册 cohort，便于对比近期稳定样本；更早月份存在较多样本极小的稀疏 cohort，因此不放在页面主展示区域。'
   );
 
   const tbody = document.querySelector('#cohortTable tbody');
@@ -150,11 +186,11 @@ function renderRevenue(data) {
   setText('revenueArppuValue', formatCompactCurrency(overall.arppu));
   setText(
     'revenuePayRateSub',
-    `${formatNumber(overall.payers)} / ${formatNumber(overall.users)} A/B 变现实验样本`
+    `${formatNumber(overall.payers)} / ${formatNumber(overall.users)} A/B 实验样本付费用户`
   );
   setText(
     'revenueInsight',
-    `以下营收结构仅代表 ab_test 实验样本：其中仅 ${formatPercent(superTier.user_share)} 的超级鲸鱼贡献了 ${formatPercent(superTier.revenue_share)} 营收（${formatCompactCurrency(superTier.revenue)}）。这更适合作为变现风险信号，而不是对全量用户收入结构的直接定论。`
+    `以下营收结构仅代表 ab_test 样本：其中仅 ${formatPercent(superTier.user_share)} 的超级鲸鱼贡献了 ${formatPercent(superTier.revenue_share)} 营收（${formatCompactCurrency(superTier.revenue)}）。当前更像“低转化、高客单、强集中”结构，运营上更值得先补首购路径和中腰部商品，而不是继续放大少数高价值用户贡献。`
   );
 
   tableBody.innerHTML = '';
@@ -185,10 +221,14 @@ function renderAbTest(data) {
   setText('abBUsers', formatNumber(groupB.users));
   setText('abBPayRate', formatPercent(groupB.pay_rate));
   setText('abBArpu', formatCurrency(groupB.arpu));
+  setText(
+    'abTestNote',
+    '说明：本模块仅基于 ab_test.csv 样本。这里的付费率=样本内付费用户占比，ARPU=样本内总收入/总用户；数据未提供实验起止时间、分流规则与曝光口径，因此这里只做样本结果解读，更适合回答“是否值得继续验证”，而不是直接决定上线。'
+  );
 
   setText(
     'abInsight',
-    `A/B 结果仅基于 ab_test 实验样本。B 组 ARPU 比 A 组高 ${formatCurrency(arpuTest.difference)}（${formatPercent(arpuTest.relative_uplift_pct)}），但 p=${arpuTest.p_value.toFixed(3)}；付费率反而低 ${formatNumber(Math.abs(payRateTest.difference_pct_points), 2)}pct（p=${payRateTest.p_value.toFixed(3)}）。当前证据不足以把 B 组视为更优方案。`
+    `A/B 结果仅基于 ab_test 样本。B 组 ARPU 比 A 组高 ${formatCurrency(arpuTest.difference)}（${formatPercent(arpuTest.relative_uplift_pct)}），但 p=${arpuTest.p_value.toFixed(3)}；付费率反而低 ${formatNumber(Math.abs(payRateTest.difference_pct_points), 2)}pct（p=${payRateTest.p_value.toFixed(3)}）。当前更适合把它视为“存在收入趋势、但伴随转化风险”的样本信号，运营上不建议直接推广，更适合继续观察或补实验信息。`
   );
 }
 
@@ -204,8 +244,13 @@ function renderInsights(data) {
   const core = activity.segments.find(segment => segment.key === 'core_10p_d');
 
   setText(
+    'insightMethodNote',
+    '本页区分“数据结论”和“运营假设”：数字来自离线聚合结果，行动建议属于基于当前数据提出的候选方向，仍需结合版本、活动、渠道与实验条件继续验证。'
+  );
+
+  setText(
     'insightRetentionDrop',
-    `紧急：次日留存仅 ${formatPercent(overview.retention.D1)}。也就是有 ${(100 - overview.retention.D1).toFixed(2)}% 的新用户没有在次日回来，首日体验仍是最优先的流失修复点。`
+    `紧急：次日留存仅 ${formatPercent(overview.retention.D1)}。也就是有 ${(100 - overview.retention.D1).toFixed(2)}% 的新用户没有在次日回来，首日体验仍是最优先的流失修复点。对运营而言，这通常先看新手引导完成、首日奖励承接和次日触达是否足够。`
   );
   setText(
     'insightRetentionRebound',
@@ -213,19 +258,19 @@ function renderInsights(data) {
   );
   setText(
     'insightRevenue',
-    `实验样本中的收入结构高度集中：${formatNumber(superTier.user_count)} 名超级鲸鱼仅占 ${formatPercent(superTier.user_share)}，却贡献了 ${formatPercent(superTier.revenue_share)} 营收。这提示变现可能对高价值用户依赖较强，但仍应避免把它直接外推为全量用户结论。`
+    `实验样本中的收入结构高度集中：${formatNumber(superTier.user_count)} 名超级鲸鱼仅占 ${formatPercent(superTier.user_share)}，却贡献了 ${formatPercent(superTier.revenue_share)} 营收。这提示变现对高价值用户依赖较强；更务实的运营方向是补中腰部商品和首付转化，而不是只围绕鲸鱼做活动。`
   );
   setText(
     'insightDau',
-    `DAU 仍在增长：2020 年首周周均 DAU 为 ${formatNumber(weeklyStart.v, 0)}，最新周均值已到 ${formatNumber(weeklyEnd.v, 0)}，涨幅 ${formatPercent(overview.dau_growth_pct)}。但如果留存不修复，这种增长仍高度依赖持续买量。`
+    `DAU 仍在增长：2020 年首周周均 DAU 为 ${formatNumber(weeklyStart.v, 0)}，最新周均值已到 ${formatNumber(weeklyEnd.v, 0)}，涨幅 ${formatPercent(overview.dau_growth_pct)}。但如果留存不修复，这种增长更像持续拉新驱动；对运营来说，复盘新增质量会比单纯追 DAU 更重要。`
   );
   setText(
     'insightAb',
-    `A/B 样本内尚未显示 B 组更优：B 组付费率比 A 组低 ${formatNumber(Math.abs(payRateTest.difference_pct_points), 2)}pct，且在 5% 水平达到显著性（p=${payRateTest.p_value.toFixed(3)}）；ARPU 虽高 ${formatCurrency(arpuTest.difference)}，但并不显著（p=${arpuTest.p_value.toFixed(3)}）。`
+    `A/B 样本内尚未显示 B 组更优：B 组付费率比 A 组低 ${formatNumber(Math.abs(payRateTest.difference_pct_points), 2)}pct，且在 5% 水平达到显著性（p=${payRateTest.p_value.toFixed(3)}）；ARPU 虽高 ${formatCurrency(arpuTest.difference)}，但并不显著（p=${arpuTest.p_value.toFixed(3)}）。作为运营判断，更应优先警惕转化下滑，而不是只盯收入抬升趋势。`
   );
   setText(
     'insightSegments',
-    `活跃分层偏轻：截至 ${meta.data_end}，近30日未登录占 ${formatPercent(inactive.share)}，核心活跃（10天+）仅 ${formatPercent(core.share)}。更值得运营跟进的是 1-9 天游玩用户的活跃深化与分层召回。`
+    `活跃分层偏轻：截至 ${meta.data_end}，近30日未登录占 ${formatPercent(inactive.share)}，核心活跃（10天+）仅 ${formatPercent(core.share)}。更值得运营跟进的是 1-9 天游玩用户的活跃深化与轻召回，因为这部分人比 30 日沉默用户更容易被重新拉活。`
   );
 }
 
@@ -233,7 +278,7 @@ function renderFooter(data) {
   const { meta } = data;
   setText(
     'footerScope',
-    `游戏运营数据看板 · 全量注册 ${formatNumber(meta.reg_users)} · 登录事件 ${formatNumber(meta.auth_rows)} · 变现/A/B 为实验样本口径 ${formatNumber(meta.ab_users)}`
+    `游戏运营数据看板 · 数据源 reg/auth/ab_test · 页面读取离线聚合结果 · 全量注册 ${formatNumber(meta.reg_users)} · 登录事件 ${formatNumber(meta.auth_rows)} · 变现/A/B 为实验样本口径 ${formatNumber(meta.ab_users)}`
   );
 }
 
@@ -549,19 +594,29 @@ function buildCharts(data) {
 
 function showLoadError(error) {
   console.error(error);
-  const message = '数据加载失败，请通过本地 HTTP 服务访问页面，并确认 data/dashboard-metrics.json 可读。';
+  const primaryMessage = '数据加载失败，请通过本地 HTTP 服务访问页面，并确认 data/dashboard-metrics.json 可读。';
+  const secondaryMessage = '当前无法显示说明与结论。';
+  const detailMessage = '请先恢复数据加载。';
+
+  setText('overviewDataNote', primaryMessage);
+  setText('footerScope', '数据加载失败：请检查本地 HTTP 服务与聚合结果文件。');
   [
+    'overviewOperatorNote',
     'retentionSummary',
+    'cohortNote',
     'revenueInsight',
+    'abTestNote',
     'abInsight',
+    'insightMethodNote',
+  ].forEach(id => setText(id, secondaryMessage));
+  [
     'insightRetentionDrop',
     'insightRetentionRebound',
     'insightRevenue',
     'insightDau',
     'insightAb',
     'insightSegments',
-    'footerScope',
-  ].forEach(id => setText(id, message));
+  ].forEach(id => setText(id, detailMessage));
 }
 
 async function loadDashboard() {
