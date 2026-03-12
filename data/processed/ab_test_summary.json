@@ -1,0 +1,85 @@
+{
+  "meta": {
+    "sample_users": 404770,
+    "metric_scope": "ab_test_sample_only"
+  },
+  "summary": {
+    "sample_users": 404770,
+    "sample_payers": 3733,
+    "sample_pay_rate": 0.9223,
+    "sample_arpu": 26.0834,
+    "sample_arppu": 2828.2325,
+    "sample_total_revenue": 10557792.0
+  },
+  "tiers": [
+    {
+      "key": "free",
+      "label": "免费用户",
+      "range": "$0",
+      "color": "#E4E4E7",
+      "user_count": 401037,
+      "user_share": 99.0777,
+      "revenue": 0.0,
+      "revenue_share": 0.0,
+      "arppu": null
+    },
+    {
+      "key": "super",
+      "label": "超级鲸鱼 ($2K+)",
+      "range": "$2K+",
+      "color": "#059669",
+      "user_count": 1928,
+      "user_share": 0.4763,
+      "revenue": 10011855.0,
+      "revenue_share": 94.8291,
+      "arppu": 5192.87
+    },
+    {
+      "key": "mid",
+      "label": "中高付费 ($50-$1,999)",
+      "range": "$50-$1,999",
+      "color": "#F59E0B",
+      "user_count": 1805,
+      "user_share": 0.4459,
+      "revenue": 545937.0,
+      "revenue_share": 5.1709,
+      "arppu": 302.46
+    }
+  ],
+  "groups": [
+    {
+      "group": "a",
+      "users": 202103,
+      "payers": 1928,
+      "pay_rate": 0.954,
+      "arpu": 25.4137,
+      "arppu": 2663.9984,
+      "revenue": 5136189.0
+    },
+    {
+      "group": "b",
+      "users": 202667,
+      "payers": 1805,
+      "pay_rate": 0.8906,
+      "arpu": 26.7513,
+      "arppu": 3003.6582,
+      "revenue": 5421603.0
+    }
+  ],
+  "tests": {
+    "pay_rate": {
+      "metric_definition": "payer share by testgroup",
+      "test_method": "two_proportion_z_test",
+      "difference_pct_points": -0.0633,
+      "p_value": 0.035,
+      "relative_uplift_pct": -6.6352
+    },
+    "arpu": {
+      "metric_definition": "mean revenue per user by testgroup",
+      "test_method": "welch_t_normal_approx",
+      "difference": 1.3376,
+      "p_value": 0.533,
+      "relative_uplift_pct": 5.2633
+    }
+  }
+}
