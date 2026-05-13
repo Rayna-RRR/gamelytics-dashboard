@@ -20,16 +20,16 @@
   </header>
 
   <!-- TAB BAR -->
-  <nav class="tab-bar" id="tabBar">
-    <button class="tab-btn active" data-tab="overview">总览</button>
-    <button class="tab-btn" data-tab="retention">留存分析</button>
-    <button class="tab-btn" data-tab="revenue">营收分析</button>
-    <button class="tab-btn" data-tab="abtest">A/B 测试</button>
-    <button class="tab-btn" data-tab="insights">洞察与建议</button>
+  <nav class="tab-bar" id="tabBar" role="tablist" aria-label="看板模块">
+    <button class="tab-btn active" id="tab-overview" type="button" role="tab" data-tab="overview" aria-selected="true" aria-controls="panel-overview">总览</button>
+    <button class="tab-btn" id="tab-retention" type="button" role="tab" data-tab="retention" aria-selected="false" aria-controls="panel-retention" tabindex="-1">留存分析</button>
+    <button class="tab-btn" id="tab-revenue" type="button" role="tab" data-tab="revenue" aria-selected="false" aria-controls="panel-revenue" tabindex="-1">营收分析</button>
+    <button class="tab-btn" id="tab-abtest" type="button" role="tab" data-tab="abtest" aria-selected="false" aria-controls="panel-abtest" tabindex="-1">A/B 测试</button>
+    <button class="tab-btn" id="tab-insights" type="button" role="tab" data-tab="insights" aria-selected="false" aria-controls="panel-insights" tabindex="-1">洞察与建议</button>
   </nav>
 
   <!-- ═══════════════ OVERVIEW ═══════════════ -->
-  <section class="tab-panel active" id="panel-overview">
+  <section class="tab-panel active" id="panel-overview" role="tabpanel" aria-labelledby="tab-overview">
     <div class="kpi-grid">
       <div class="kpi-card" data-color="blue">
         <div class="kpi-label">日均活跃 (DAU)</div>
@@ -81,7 +81,7 @@
   </section>
 
   <!-- ═══════════════ RETENTION ═══════════════ -->
-  <section class="tab-panel" id="panel-retention">
+  <section class="tab-panel" id="panel-retention" role="tabpanel" aria-labelledby="tab-retention" hidden>
     <div class="kpi-grid">
       <div class="kpi-card" data-color="red">
         <div class="kpi-label">D1 · 次日留存</div>
@@ -118,12 +118,14 @@
     <div class="chart-card">
       <div class="section-title">月度 Cohort 留存热力图（2020）</div>
       <p class="section-desc" id="cohortNote">数据加载中...</p>
-      <table class="data-table" id="cohortTable">
-        <thead>
-          <tr><th>注册月份</th><th style="text-align:center">次日</th><th style="text-align:center">3日</th><th style="text-align:center">7日</th><th style="text-align:center">14日</th><th style="text-align:center">30日</th></tr>
-        </thead>
-        <tbody></tbody>
-      </table>
+      <div class="table-scroll" tabindex="0" aria-label="月度 Cohort 留存表">
+        <table class="data-table" id="cohortTable">
+          <thead>
+            <tr><th>注册月份</th><th style="text-align:center">次日</th><th style="text-align:center">3日</th><th style="text-align:center">7日</th><th style="text-align:center">14日</th><th style="text-align:center">30日</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
     </div>
 
     <div class="chart-card">
@@ -133,7 +135,7 @@
   </section>
 
   <!-- ═══════════════ REVENUE ═══════════════ -->
-  <section class="tab-panel" id="panel-revenue">
+  <section class="tab-panel" id="panel-revenue" role="tabpanel" aria-labelledby="tab-revenue" hidden>
     <div class="kpi-grid">
       <div class="kpi-card" data-color="green">
         <div class="kpi-label">实验样本总营收</div>
@@ -168,12 +170,14 @@
 
     <div class="chart-card">
       <div class="section-title">付费层级明细</div>
-      <table class="data-table">
-        <thead>
-          <tr><th>付费层级</th><th>用户数</th><th>用户占比</th><th>营收</th><th>营收占比</th><th>人均付费</th></tr>
-        </thead>
-        <tbody id="revenueTierTableBody"></tbody>
-      </table>
+      <div class="table-scroll" tabindex="0" aria-label="付费层级明细表">
+        <table class="data-table">
+          <thead>
+            <tr><th>付费层级</th><th>用户数</th><th>用户占比</th><th>营收</th><th>营收占比</th><th>人均付费</th></tr>
+          </thead>
+          <tbody id="revenueTierTableBody"></tbody>
+        </table>
+      </div>
     </div>
 
     <div class="insight-badge insight-warning">
@@ -183,7 +187,7 @@
   </section>
 
   <!-- ═══════════════ A/B TEST ═══════════════ -->
-  <section class="tab-panel" id="panel-abtest">
+  <section class="tab-panel" id="panel-abtest" role="tabpanel" aria-labelledby="tab-abtest" hidden>
     <div class="grid-2" style="margin-bottom:24px">
       <div class="ab-card control">
         <div class="ab-label">对照组 (A)</div>
@@ -216,7 +220,7 @@
   </section>
 
   <!-- ═══════════════ INSIGHTS ═══════════════ -->
-  <section class="tab-panel" id="panel-insights">
+  <section class="tab-panel" id="panel-insights" role="tabpanel" aria-labelledby="tab-insights" hidden>
     <div class="chart-card">
       <div class="section-title">关键发现</div>
       <p class="section-desc" id="insightMethodNote">数据加载中...</p>

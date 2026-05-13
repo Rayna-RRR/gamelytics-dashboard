@@ -1,36 +1,110 @@
 // ═══════════════════════════════════════════════════
 // TAB SWITCHING
 // ═══════════════════════════════════════════════════
-document.querySelectorAll('.tab-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-    btn.classList.add('active');
-    document.getElementById(`panel-${btn.dataset.tab}`).classList.add('active');
+const tabButtons = Array.from(document.querySelectorAll('.tab-btn'));
+const tabPanels = Array.from(document.querySelectorAll('.tab-panel'));
+
+function activateTab(activeButton) {
+  const targetPanel = document.getElementById(`panel-${activeButton.dataset.tab}`);
+  if (!targetPanel) {
+    return;
+  }
+
+  tabButtons.forEach(button => {
+    const isActive = button === activeButton;
+    button.classList.toggle('active', isActive);
+    button.setAttribute('aria-selected', String(isActive));
+    button.tabIndex = isActive ? 0 : -1;
+  });
+
+  tabPanels.forEach(panel => {
+    const isActive = panel === targetPanel;
+    panel.classList.toggle('active', isActive);
+    panel.hidden = !isActive;
+  });
+
+  requestAnimationFrame(resizeVisibleCharts);
+}
+
+function resizeVisibleCharts() {
+  if (!window.Chart || !Chart.instances) {
+    return;
+  }
+
+  Object.values(Chart.instances).forEach(chart => {
+    if (chart && typeof chart.resize === 'function') {
+      chart.resize();
+    }
+  });
+}
+
+tabButtons.forEach((button, index) => {
+  button.addEventListener('click', () => activateTab(button));
+  button.addEventListener('keydown', event => {
+    const lastIndex = tabButtons.length - 1;
+    let nextIndex = index;
+
+    if (event.key === 'ArrowRight') {
+      nextIndex = index === lastIndex ? 0 : index + 1;
+    } else if (event.key === 'ArrowLeft') {
+      nextIndex = index === 0 ? lastIndex : index - 1;
+    } else if (event.key === 'Home') {
+      nextIndex = 0;
+    } else if (event.key === 'End') {
+      nextIndex = lastIndex;
+    } else {
+      return;
+    }
+
+    event.preventDefault();
+    tabButtons[nextIndex].focus();
+    activateTab(tabButtons[nextIndex]);
   });
 });
+
+const initialTab = tabButtons.find(button => button.classList.contains('active')) || tabButtons[0];
+if (initialTab) {
+  activateTab(initialTab);
+}
 
 // ═══════════════════════════════════════════════════
 // CHART.JS GLOBAL DEFAULTS
 // ═══════════════════════════════════════════════════
-Chart.defaults.color = '#71717A';
-Chart.defaults.borderColor = '#E4E4E7';
-Chart.defaults.font.family = "'Inter', -apple-system, 'PingFang SC', sans-serif";
-Chart.defaults.font.size = 12;
-Chart.defaults.plugins.legend.display = false;
-Chart.defaults.plugins.tooltip.backgroundColor = '#FFFFFF';
-Chart.defaults.plugins.tooltip.titleColor = '#18181B';
-Chart.defaults.plugins.tooltip.bodyColor = '#71717A';
-Chart.defaults.plugins.tooltip.borderColor = '#E4E4E7';
-Chart.defaults.plugins.tooltip.borderWidth = 1;
-Chart.defaults.plugins.tooltip.cornerRadius = 10;
-Chart.defaults.plugins.tooltip.padding = 12;
-Chart.defaults.plugins.tooltip.titleFont = { weight: '600', size: 12 };
-Chart.defaults.plugins.tooltip.bodyFont = { size: 13, weight: '500' };
-Chart.defaults.plugins.tooltip.displayColors = false;
-Chart.defaults.plugins.tooltip.boxShadow = '0 4px 16px rgba(0,0,0,0.08)';
+function configureChartDefaults() {
+  if (!window.Chart) {
+    throw new Error('Chart.js is not available.');
+  }
 
-const numberFormatter = new Intl.NumberFormat('zh-CN');
+  Chart.defaults.color = '#71717A';
+  Chart.defaults.borderColor = '#E4E4E7';
+  Chart.defaults.font.family = "'Inter', -apple-system, 'PingFang SC', sans-serif";
+  Chart.defaults.font.size = 12;
+  Chart.defaults.plugins.legend.display = false;
+  Chart.defaults.plugins.tooltip.backgroundColor = '#FFFFFF';
+  Chart.defaults.plugins.tooltip.titleColor = '#18181B';
+  Chart.defaults.plugins.tooltip.bodyColor = '#71717A';
+  Chart.defaults.plugins.tooltip.borderColor = '#E4E4E7';
+  Chart.defaults.plugins.tooltip.borderWidth = 1;
+  Chart.defaults.plugins.tooltip.cornerRadius = 10;
+  Chart.defaults.plugins.tooltip.padding = 12;
+  Chart.defaults.plugins.tooltip.titleFont = { weight: '600', size: 12 };
+  Chart.defaults.plugins.tooltip.bodyFont = { size: 13, weight: '500' };
+  Chart.defaults.plugins.tooltip.displayColors = false;
+  Chart.defaults.plugins.tooltip.boxShadow = '0 4px 16px rgba(0,0,0,0.08)';
+}
+
+const EMPTY_SEGMENT = { key: '', label: '', count: 0, share: 0 };
+const EMPTY_TIER = {
+  key: '',
+  label: '未配置层级',
+  range: '',
+  color: '#E4E4E7',
+  user_count: 0,
+  user_share: 0,
+  revenue: 0,
+  revenue_share: 0,
+  arppu: null,
+};
 
 function setText(id, value) {
   const element = document.getElementById(id);
@@ -39,11 +113,16 @@ function setText(id, value) {
   }
 }
 
+function toFiniteNumber(value, fallback = 0) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+}
+
 function formatNumber(value, digits = 0) {
   return new Intl.NumberFormat('zh-CN', {
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
-  }).format(value);
+  }).format(toFiniteNumber(value));
 }
 
 function formatPercent(value, digits = 2) {
@@ -51,25 +130,27 @@ function formatPercent(value, digits = 2) {
 }
 
 function formatCurrency(value, digits = 2) {
-  if (!value) {
+  const amount = toFiniteNumber(value);
+  if (amount === 0) {
     return '$0';
   }
-  return `$${formatNumber(value, digits)}`;
+  return `$${formatNumber(amount, digits)}`;
 }
 
 function formatCompactCurrency(value) {
-  if (!value) {
+  const amount = toFiniteNumber(value);
+  if (amount === 0) {
     return '$0';
   }
 
-  const absolute = Math.abs(value);
+  const absolute = Math.abs(amount);
   if (absolute >= 1_000_000) {
-    return `$${(value / 1_000_000).toFixed(2).replace(/\.00$/, '')}M`;
+    return `$${(amount / 1_000_000).toFixed(2).replace(/\.00$/, '')}M`;
   }
   if (absolute >= 1_000) {
-    return `$${(value / 1_000).toFixed(2).replace(/\.00$/, '')}K`;
+    return `$${(amount / 1_000).toFixed(2).replace(/\.00$/, '')}K`;
   }
-  return formatCurrency(value);
+  return formatCurrency(amount);
 }
 
 function makeGradient(ctx, color, alpha1 = 0.25, alpha2 = 0) {
@@ -84,14 +165,39 @@ function getPeakRetentionPoint(retentionFull, startDay, endDay) {
     const day = Number(point.d.replace('D', ''));
     return day >= startDay && day <= endDay;
   });
+  if (!range.length) {
+    return retentionFull[0] || { d: 'D0', v: 0 };
+  }
   return range.reduce((best, point) => (point.v > best.v ? point : best), range[0]);
 }
 
 // Lightweight insight helpers:
 // use a few fixed thresholds to turn existing metrics into operator-facing notes,
 // without pretending to be an automated decision engine.
-function getSegmentByKey(activitySegments, key) {
-  return activitySegments.find(segment => segment.key === key);
+function getSegmentByKey(activitySegments = [], key) {
+  return activitySegments.find(segment => segment.key === key) || EMPTY_SEGMENT;
+}
+
+function getTierByKey(tiers = [], key) {
+  return tiers.find(tier => tier.key === key) || EMPTY_TIER;
+}
+
+function appendCell(row, value, options = {}) {
+  const cell = document.createElement('td');
+  cell.textContent = value;
+
+  if (options.className) {
+    cell.className = options.className;
+  }
+  if (options.align) {
+    cell.style.textAlign = options.align;
+  }
+  if (options.styles) {
+    Object.assign(cell.style, options.styles);
+  }
+
+  row.appendChild(cell);
+  return cell;
 }
 
 function renderOverview(data) {
@@ -155,20 +261,26 @@ function renderRetention(data) {
   const tbody = document.querySelector('#cohortTable tbody');
   const keys = ['D1', 'D3', 'D7', 'D14', 'D30'];
   const maxValues = keys.reduce((accumulator, key) => {
-    accumulator[key] = Math.max(...charts.cohort.map(row => row[key]));
+    accumulator[key] = Math.max(0, ...charts.cohort.map(row => toFiniteNumber(row[key])));
     return accumulator;
   }, {});
 
   tbody.innerHTML = '';
   charts.cohort.forEach(row => {
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td style="font-family:var(--font-sans);font-weight:600;color:var(--text-main)">${row.m}</td>`;
+    appendCell(tr, row.m, { className: 'cohort-month-cell' });
     keys.forEach(key => {
-      const value = row[key];
+      const value = toFiniteNumber(row[key]);
       const intensity = maxValues[key] ? Math.min(value / maxValues[key], 1) : 0;
       const alpha = (intensity * 0.55).toFixed(2);
       const color = intensity > 0.6 ? '#FFFFFF' : '#18181B';
-      tr.innerHTML += `<td class="heat-cell" style="background:rgba(5,150,105,${alpha});color:${color}">${formatPercent(value)}</td>`;
+      appendCell(tr, formatPercent(value), {
+        className: 'heat-cell',
+        styles: {
+          backgroundColor: `rgba(5, 150, 105, ${alpha})`,
+          color,
+        },
+      });
     });
     tbody.appendChild(tr);
   });
@@ -177,7 +289,7 @@ function renderRetention(data) {
 function renderRevenue(data) {
   const { revenue } = data;
   const overall = revenue.overall;
-  const superTier = revenue.tiers.find(tier => tier.key === 'super');
+  const superTier = getTierByKey(revenue.tiers, 'super');
   const tableBody = document.getElementById('revenueTierTableBody');
 
   setText('revenueTotalValue', formatCompactCurrency(overall.total_revenue));
@@ -196,14 +308,16 @@ function renderRevenue(data) {
   tableBody.innerHTML = '';
   revenue.tiers.forEach(tier => {
     const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td><span class="tier-dot" style="background:${tier.color}"></span>${tier.label}</td>
-      <td>${formatNumber(tier.user_count)}</td>
-      <td>${formatPercent(tier.user_share)}</td>
-      <td>${formatCompactCurrency(tier.revenue)}</td>
-      <td>${formatPercent(tier.revenue_share)}</td>
-      <td>${tier.arppu ? formatCurrency(tier.arppu) : '-'}</td>
-    `;
+    const labelCell = appendCell(tr, '');
+    const dot = document.createElement('span');
+    dot.className = 'tier-dot';
+    dot.style.backgroundColor = tier.color || '#E4E4E7';
+    labelCell.append(dot, document.createTextNode(tier.label));
+    appendCell(tr, formatNumber(tier.user_count));
+    appendCell(tr, formatPercent(tier.user_share));
+    appendCell(tr, formatCompactCurrency(tier.revenue));
+    appendCell(tr, formatPercent(tier.revenue_share));
+    appendCell(tr, tier.arppu ? formatCurrency(tier.arppu) : '-');
     tableBody.appendChild(tr);
   });
 }
@@ -235,13 +349,13 @@ function renderAbTest(data) {
 function renderInsights(data) {
   const { overview, charts, revenue, ab_test: abTest, activity_segments: activity, meta } = data;
   const peak = getPeakRetentionPoint(charts.retention_full, 2, 7);
-  const superTier = revenue.tiers.find(tier => tier.key === 'super');
+  const superTier = getTierByKey(revenue.tiers, 'super');
   const weeklyStart = charts.dau_weekly[0];
   const weeklyEnd = charts.dau_weekly[charts.dau_weekly.length - 1];
   const payRateTest = abTest.tests.pay_rate;
   const arpuTest = abTest.tests.arpu;
-  const inactive = activity.segments.find(segment => segment.key === 'inactive_30d');
-  const core = activity.segments.find(segment => segment.key === 'core_10p_d');
+  const inactive = getSegmentByKey(activity.segments, 'inactive_30d');
+  const core = getSegmentByKey(activity.segments, 'core_10p_d');
 
   setText(
     'insightMethodNote',
@@ -283,6 +397,8 @@ function renderFooter(data) {
 }
 
 function buildCharts(data) {
+  configureChartDefaults();
+
   const { charts, revenue, ab_test: abTest } = data;
   const dauValues = charts.dau_weekly.map(point => point.v);
   const retentionValues = charts.retention_full.map(point => point.v);
@@ -290,9 +406,10 @@ function buildCharts(data) {
   const dauMin = Math.floor(Math.min(...dauValues) * 0.95 / 500) * 500;
   const retentionMax = Math.ceil(Math.max(...retentionValues) + 1);
   const cohortMax = Math.ceil(Math.max(...cohortValues) + 1);
-  const paidUsers = revenue.overall.users - revenue.tiers.find(tier => tier.key === 'free').user_count;
-  const superTier = revenue.tiers.find(tier => tier.key === 'super');
-  const midTier = revenue.tiers.find(tier => tier.key === 'mid');
+  const freeTier = getTierByKey(revenue.tiers, 'free');
+  const paidUsers = Math.max(0, revenue.overall.users - freeTier.user_count);
+  const superTier = getTierByKey(revenue.tiers, 'super');
+  const midTier = getTierByKey(revenue.tiers, 'mid');
 
   const ctxDAU = document.getElementById('chartDAU').getContext('2d');
   new Chart(ctxDAU, {
@@ -488,11 +605,11 @@ function buildCharts(data) {
     type: 'doughnut',
     data: {
       labels: [
-        `免费用户 (${formatPercent(revenue.tiers.find(tier => tier.key === 'free').user_share)})`,
+        `免费用户 (${formatPercent(freeTier.user_share)})`,
         `付费用户 (${formatPercent(revenue.overall.pay_rate)})`,
       ],
       datasets: [{
-        data: [revenue.tiers.find(tier => tier.key === 'free').user_count, paidUsers],
+        data: [freeTier.user_count, paidUsers],
         backgroundColor: ['#E4E4E7', '#059669'],
         hoverBackgroundColor: ['#D4D4D8', '#047857'],
         borderWidth: 0,

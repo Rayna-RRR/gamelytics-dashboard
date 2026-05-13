@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import json
 import math
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
@@ -25,6 +25,10 @@ LEGACY_RETENTION_DAYS = list(range(1, 31))
 LEGACY_COHORT_MONTHS = [f"2020-{month:02d}" for month in range(1, 9)]
 ACTIVITY_WINDOW_DAYS = 30
 TIMEZONE = "Asia/Shanghai"
+
+
+def utc_timestamp() -> str:
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def round_num(value: float, digits: int = 4) -> float:
@@ -58,6 +62,13 @@ def write_json(path: Path, payload: object) -> None:
         handle.write("\n")
 
 
+def validate_source_files() -> None:
+    missing_files = [path for path in [REG_FILE, AUTH_FILE, AB_FILE] if not path.exists()]
+    if missing_files:
+        missing = ", ".join(str(path.relative_to(ROOT)) for path in missing_files)
+        raise FileNotFoundError(f"Missing raw data file(s): {missing}")
+
+
 def build_weekly_series(daily_metrics: pd.DataFrame) -> list[dict[str, float]]:
     daily = daily_metrics.copy()
     daily["date"] = pd.to_datetime(daily["date"])
@@ -67,9 +78,16 @@ def build_weekly_series(daily_metrics: pd.DataFrame) -> list[dict[str, float]]:
 
 
 def load_sources() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    reg = pd.read_csv(REG_FILE, sep=";", usecols=["reg_ts", "uid"])
-    auth = pd.read_csv(AUTH_FILE, sep=";", usecols=["auth_ts", "uid"])
-    ab = pd.read_csv(AB_FILE, sep=";", usecols=["user_id", "revenue", "testgroup"])
+    validate_source_files()
+
+    reg = pd.read_csv(REG_FILE, sep=";", usecols=["reg_ts", "uid"], dtype={"reg_ts": "int64", "uid": "int32"})
+    auth = pd.read_csv(AUTH_FILE, sep=";", usecols=["auth_ts", "uid"], dtype={"auth_ts": "int64", "uid": "int32"})
+    ab = pd.read_csv(
+        AB_FILE,
+        sep=";",
+        usecols=["user_id", "revenue", "testgroup"],
+        dtype={"user_id": "int32", "revenue": "float64", "testgroup": "string"},
+    )
 
     reg["reg_date"] = local_day(reg["reg_ts"])
     auth["auth_date"] = local_day(auth["auth_ts"])
@@ -221,9 +239,18 @@ def build_activity_segments(reg: pd.DataFrame, auth_user_day: pd.DataFrame) -> p
 def two_proportion_z_test(success_a: int, total_a: int, success_b: int, total_b: int) -> dict[str, float]:
     rate_a = success_a / total_a if total_a else 0.0
     rate_b = success_b / total_b if total_b else 0.0
-    pooled = (success_a + success_b) / (total_a + total_b) if (total_a + total_b) else 0.0
-    pooled_se = math.sqrt(pooled * (1 - pooled) * (1 / total_a + 1 / total_b))
     diff = rate_b - rate_a
+
+    if not total_a or not total_b:
+        return {
+            "metric_definition": "payer share by testgroup",
+            "test_method": "two_proportion_z_test",
+            "difference_pct_points": round_num(diff * 100, 4),
+            "p_value": 1.0,
+        }
+
+    pooled = (success_a + success_b) / (total_a + total_b)
+    pooled_se = math.sqrt(pooled * (1 - pooled) * (1 / total_a + 1 / total_b))
     z_score = diff / pooled_se if pooled_se else 0.0
     return {
         "metric_definition": "payer share by testgroup",
@@ -397,7 +424,7 @@ def build_dashboard_payload(
 
     return {
         "meta": {
-            "generated_at": datetime.utcnow().replace(microsecond=0).isoformat() + "Z",
+            "generated_at": utc_timestamp(),
             "timezone": TIMEZONE,
             "data_range": {
                 "reg_start": reg["reg_date"].min().strftime("%Y-%m-%d"),
@@ -490,7 +517,7 @@ def build_legacy_dashboard_metrics(
 
     return {
         "meta": {
-            "generated_at": datetime.utcnow().replace(microsecond=0).isoformat() + "Z",
+            "generated_at": utc_timestamp(),
             "timezone": TIMEZONE,
             "data_start": auth["auth_date"].min().date().isoformat(),
             "data_end": auth["auth_date"].max().date().isoformat(),
